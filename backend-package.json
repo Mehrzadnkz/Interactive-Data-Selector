@@ -1,0 +1,17 @@
+{
+  "name": "todo-backend",
+  "version": "1.0.0",
+  "description": "Todo file management backend",
+  "main": "file-manager.js",
+  "scripts": {
+    "start": "node file-manager.js",
+    "dev": "nodemon file-manager.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
