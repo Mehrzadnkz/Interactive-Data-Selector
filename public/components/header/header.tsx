@@ -81,21 +81,20 @@ const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
 
-            {/* انتخابگر تعداد */}
-            <select 
-              value={userLimit} 
-              onChange={(e) => setUserLimit(Number(e.target.value))}
-              className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1
-                       bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-                       focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={30}>30</option>
-              <option value={50}>50</option>
-            </select>
-
-            {/* دکمه تم */}
+              {/* انتخابگر تعداد */}
+              <select 
+                value={userLimit} 
+                onChange={(e) => setUserLimit(Number(e.target.value))}
+                className="text-sm border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1
+                         bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+                         focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={30}>30</option>
+                <option value={50}>50</option>
+                <option value={100}>All</option>
+              </select>            {/* دکمه تم */}
             <button 
               onClick={toggleDarkMode} 
               className="text-lg p-2 rounded-lg border border-gray-300 dark:border-gray-600 

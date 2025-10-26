@@ -1,24 +1,62 @@
 import { useState, useEffect, useCallback } from 'react';
-import { UserCard } from "./../public/components/functions/functions";
-import { userAPI, type User } from "./../public/api/api";
-import Header from "./../public/components/header/header";
-import Footer from "./../public/components/footer/footer";
+import Header from '../public/components/header/header';
+import Footer from '../public/components/footer/footer';
+import { userAPI, type User } from '../public/api/api';
+import { UserCard, UserDetailModal } from '../public/components/functions/functions';
 
 function App() {
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [userLimit, setUserLimit] = useState(10);
+  const [userLimit, setUserLimit] = useState<number>(10);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  
+  // Selection states
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+  const [isCtrlPressed, setIsCtrlPressed] = useState<boolean>(false);
+  const [showSelectedOnly, setShowSelectedOnly] = useState<boolean>(false);
+  const [selectedUserForDetail, setSelectedUserForDetail] = useState<User | null>(null);
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
 
-  // دریافت کاربران از API
-  const fetchUsers = useCallback(async (limit: number = userLimit, query: string = '') => {
+  // Initial loading timer
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Keyboard event listeners for Ctrl key
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Control') {
+        setIsCtrlPressed(true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Control') {
+        setIsCtrlPressed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Fetch users function
+  const fetchUsers = useCallback(async (limit: number, query?: string) => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      setError(null);
-      
       let response;
-      if (query.trim()) {
+      if (query && query.trim()) {
         response = await userAPI.searchUsers(query);
       } else {
         response = await userAPI.getUsers(limit);
@@ -31,23 +69,52 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [userLimit]);
+  }, []);
 
-  // بارگذاری اولیه
-  useEffect(() => {
-    fetchUsers(userLimit);
-  }, [fetchUsers, userLimit]);
+  // Handle UserCard click
+  const handleUserClick = useCallback((user: User) => {
+    if (isCtrlPressed) {
+      // Selection mode - toggle user selection
+      const isAlreadySelected = selectedUsers.includes(user.id);
+      if (isAlreadySelected) {
+        setSelectedUsers(prev => prev.filter(id => id !== user.id));
+      } else {
+        setSelectedUsers(prev => [...prev, user.id]);
+      }
+    } else {
+      // Detail mode - show user details modal
+      setSelectedUserForDetail(user);
+    }
+  }, [isCtrlPressed, selectedUsers]);
 
-  // تغییر تعداد کاربران
+  // Close detail modal
+  const closeDetailModal = () => {
+    setSelectedUserForDetail(null);
+  };
+
+  // Toggle show selected users
+  const toggleShowSelected = () => {
+    setShowSelectedOnly(!showSelectedOnly);
+  };
+
+  // Clear all selections
+  const clearSelections = () => {
+    setSelectedUsers([]);
+    setShowSelectedOnly(false);
+  };
+
+  // Load data on mount or when dependencies change
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    if (!initialLoading) {
       fetchUsers(userLimit);
     }
-  }, [userLimit, searchQuery, fetchUsers]);
+  }, [userLimit, fetchUsers, initialLoading]);
 
-  // جستجوی کاربران
+  // Search function
   const handleSearch = async (query: string) => {
-    // به‌روزرسانی URL
+    setSearchQuery(query);
+    
+    // Update URL
     const url = new URL(window.location.href);
     if (query.trim()) {
       url.searchParams.set('search', query);
@@ -60,24 +127,16 @@ function App() {
     await fetchUsers(userLimit, query);
   };
 
-  // تابع refresh
+  // Refresh function
   const refreshUsers = async () => {
-    setSearchQuery('');
-    
-    // پاک کردن URL parameters
-    const url = new URL(window.location.href);
-    url.searchParams.delete('search');
-    url.searchParams.set('limit', userLimit.toString());
-    window.history.pushState({}, '', url.toString());
-    
-    await fetchUsers(userLimit);
+    await fetchUsers(userLimit, searchQuery);
   };
 
-  // تابع تغییر limit
+  // Handle limit change
   const handleLimitChange = (newLimit: number) => {
     setUserLimit(newLimit);
     
-    // به‌روزرسانی URL
+    // Update URL
     const url = new URL(window.location.href);
     url.searchParams.set('limit', newLimit.toString());
     if (searchQuery.trim()) {
@@ -86,50 +145,99 @@ function App() {
     window.history.pushState({}, '', url.toString());
   };
 
-  // بارگذاری از URL در ابتدا
+  // Load from URL on initial load
   useEffect(() => {
     const url = new URL(window.location.href);
     const urlSearch = url.searchParams.get('search') || '';
     const urlLimit = parseInt(url.searchParams.get('limit') || '10');
     
-    if (urlSearch) {
-      setSearchQuery(urlSearch);
-    }
-    if (urlLimit && urlLimit !== 10) {
-      setUserLimit(urlLimit);
-    }
-  }, []); // فقط یک بار در ابتدا اجرا بشه
+    setSearchQuery(urlSearch);
+    setUserLimit(urlLimit);
+  }, []);
+
+  // Filter displayed users
+  const displayedUsers = showSelectedOnly 
+    ? users.filter(user => selectedUsers.includes(user.id))
+    : users;
+
+  // Initial loading screen
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mb-6"></div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Interactive Data Selector
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            در حال بارگذاری...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 via-blue-50 to-purple-50 dark:bg-linear-to-br dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20 overflow-x-hidden">
+    <div className="min-h-screen bg-white dark:bg-gray-900 overflow-x-hidden">
       {/* Header */}
       <Header 
         searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        setSearchQuery={(q: string) => setSearchQuery(q)}
         onSearch={handleSearch}
         userCount={users.length}
         userLimit={userLimit}
         setUserLimit={handleLimitChange}
       />
 
-      <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">`
-      <div className="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {/* Controls */}
-          <div className="flex gap-3">
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Ctrl+Click Info */}
+        <div className={`mb-6 p-4 rounded-lg border-2 transition-all ${
+          isCtrlPressed 
+            ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-600' 
+            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+        }`}>
+          <p className="text-center text-sm font-medium">
+            <span className={`transition-colors ${
+              isCtrlPressed ? 'text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-400'
+            }`}>
+              {isCtrlPressed ? '🎯 حالت انتخاب فعال - روی کاربران کلیک کنید' : '💡 Ctrl را نگه دارید و روی کاربران کلیک کنید'}
+            </span>
+          </p>
+        </div>
+
+        {/* Selection Actions */}
+        {selectedUsers.length > 0 && (
+          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <span className="text-green-700 dark:text-green-300 font-medium">
+                  ✅ {selectedUsers.length} کاربر انتخاب شده
+                </span>
+                <button
+                  onClick={toggleShowSelected}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  {showSelectedOnly ? 'نمایش همه' : 'نمایش انتخاب شده‌ها'}
+                </button>
+              </div>
+              <button
+                onClick={clearSelections}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              >
+                پاک کردن انتخاب‌ها
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Refresh Button */}
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
             <button
               onClick={refreshUsers}
               disabled={loading}
-              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg 
-                       hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 
-                       disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? '� در حال به‌روزرسانی...' : '� تازه‌سازی'}
-            </button>
-            
-            <button
-              onClick={() => handleSearch(searchQuery)}
-              disabled={loading}
-              className="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg 
+              className="px-6 py-3 bg-linear-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg 
                        hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 
                        disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
@@ -162,45 +270,45 @@ function App() {
         {/* Users Grid */}
         {!loading && !error && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
-            {users.map((user) => (
-              <UserCard key={user.id} user={user} />
+            {displayedUsers.map((user) => (
+              <UserCard 
+                key={user.id} 
+                user={user}
+                isSelected={selectedUsers.includes(user.id)}
+                isCtrlPressed={isCtrlPressed}
+                onUserClick={handleUserClick}
+              />
             ))}
           </div>
         )}
 
         {/* Empty State */}
-        {!loading && !error && users.length === 0 && (
+        {!loading && !error && displayedUsers.length === 0 && (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">😕</div>
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              کاربری یافت نشد
+              {showSelectedOnly ? 'هیچ کاربری انتخاب نشده' : 'کاربری یافت نشد'}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              لطفاً عبارت جستجوی دیگری امتحان کنید
+              {showSelectedOnly 
+                ? 'کاربری را با Ctrl+کلیک انتخاب کنید' 
+                : 'جستجوی دیگری امتحان کنید یا فیلترها را تغییر دهید'
+              }
             </p>
           </div>
         )}
+      </main>
 
-        {/* Footer Stats */}
-        {!loading && users.length > 0 && (
-          <div className="mt-12 text-center">
-            <div className="inline-flex items-center gap-4 bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 shadow-lg">
-              <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                📊 مجموع: {users.length} کاربر
-              </span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                🔍 جستجو: "{searchQuery || 'همه کاربران'}"
-              </span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                ⚙️ حداکثر: {userLimit}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-      
       {/* Footer */}
       <Footer />
+
+      {/* User Detail Modal */}
+      {selectedUserForDetail && (
+        <UserDetailModal
+          user={selectedUserForDetail}
+          onClose={closeDetailModal}
+        />
+      )}
     </div>
   );
 }

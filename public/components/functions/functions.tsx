@@ -76,9 +76,17 @@ export const ProfileBox = () => {
 // کامپوننت UserCard جدید برای نمایش داده‌های API
 interface UserCardProps {
   user: User;
+  isSelected?: boolean;
+  isCtrlPressed?: boolean;
+  onUserClick?: (user: User) => void;
 }
 
-export const UserCard: React.FC<UserCardProps> = ({ user }) => {
+export const UserCard: React.FC<UserCardProps> = ({ 
+  user, 
+  isSelected = false, 
+  isCtrlPressed = false, 
+  onUserClick 
+}) => {
   const Colors = [
     "blue", "green", "purple", "pink", "indigo", "teal", "orange", "red"
   ] as const;
@@ -121,7 +129,16 @@ export const UserCard: React.FC<UserCardProps> = ({ user }) => {
   };
 
   return (
-    <div className={`border-2 border-solid p-4 ${borderColorClasses[userColor]} rounded-xl bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105`}>
+    <div 
+      className={`border-2 border-solid p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer
+        ${isSelected 
+          ? 'bg-blue-100 dark:bg-blue-900/50 border-blue-500 dark:border-blue-400' 
+          : `${borderColorClasses[userColor]} bg-white dark:bg-gray-800`
+        }
+        ${isCtrlPressed ? 'hover:bg-blue-50 dark:hover:bg-blue-900/30' : ''}
+      `}
+      onClick={() => onUserClick?.(user)}
+    >
       <div className="flex items-start space-x-4 rtl:space-x-reverse">
         {/* تصویر کاربر */}
         <div className="shrink-0">
@@ -186,6 +203,113 @@ export const UserCard: React.FC<UserCardProps> = ({ user }) => {
                 <span className="truncate">{user.address.city}, {user.address.state}</span>
               </p>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// کامپوننت UserDetail Modal
+interface UserDetailModalProps {
+  user: User | null;
+  onClose: () => void;
+}
+
+export const UserDetailModal: React.FC<UserDetailModalProps> = ({ user, onClose }) => {
+  if (!user) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            جزئیات کاربر
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* تصویر */}
+            <div className="shrink-0 text-center">
+              {user.image ? (
+                <img 
+                  src={user.image} 
+                  alt={`${user.firstName} ${user.lastName}`}
+                  className="w-32 h-32 rounded-full object-cover border-4 border-gray-300 dark:border-gray-600 mx-auto"
+                />
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center border-4 border-blue-300 dark:border-blue-600 mx-auto">
+                  <span className="text-4xl font-bold text-blue-800 dark:text-blue-200">
+                    {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* اطلاعات */}
+            <div className="flex-1 space-y-4">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  {user.firstName} {user.lastName}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">ID: {user.id}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">📧 اطلاعات تماس</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    <strong>ایمیل:</strong> {user.email}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <strong>تلفن:</strong> {user.phone}
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">👤 اطلاعات شخصی</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    <strong>سن:</strong> {user.age} سال
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <strong>جنسیت:</strong> {user.gender === 'male' ? 'مرد' : 'زن'}
+                  </p>
+                </div>
+
+                {user.company && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">🏢 اطلاعات شغلی</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      <strong>شرکت:</strong> {user.company.name}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      <strong>سمت:</strong> {user.company.title}
+                    </p>
+                  </div>
+                )}
+
+                {user.address && (
+                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">📍 آدرس</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      <strong>شهر:</strong> {user.address.city}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <strong>ایالت:</strong> {user.address.state}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
