@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* فقط وقتی کلاس dark هست، تم تاریک بشه */
+html.dark {
+  color-scheme: dark;
+}
+html:not(.dark) {
+  color-scheme: light;
+}
+
+/* حذف اسکرول افقی */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* اطمینان از responsive بودن */
+* {
+  max-width: 100%;
+  box-sizing: border-box;
+}
