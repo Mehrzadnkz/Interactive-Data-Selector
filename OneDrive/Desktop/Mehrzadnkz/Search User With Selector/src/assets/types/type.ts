@@ -1,0 +1,1 @@
+export type Tloading = "starter" | "page" | "loading";
